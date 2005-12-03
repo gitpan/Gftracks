@@ -9,8 +9,9 @@ our @EXPORT = qw / instime init deltrack printtracks shell/;
 # Normally sec should only be used internally, but just in case, 
 # we make it possible to pull it in.
 our @EXPORT_OK = qw /sec tidytime /;
-our $VERSION="0.5";
+our $VERSION="0.9";
 # Returns number of secounds calculated from a grf timestamp
+
 sub sec{
   my ($h,$m,$s)=split(':',$_[0]);
   $s+=$m*60;
@@ -18,13 +19,48 @@ sub sec{
   return $s;
 }
 
+=head1 NAME
 
-#
-# instime inserts a track at a given timestamp
-#
-# ins(\@tracks,$timestamp[,$duration]);
-# If duration is not defined, the end of the track is set to the
-# current end of the track in which the insertion is performed
+Gftracks - Perl extention for manipulation of gramofiles .tracks files
+
+
+=head1 SYNOPSIS
+
+Usually the interactive shell will be used. The variable TRACKS shall point to
+the .tracks file to be edited
+
+   export TRACKS=/home/myhome/myrecord.wav.tracks
+
+   perl -MGftracks -e shell;
+
+
+Within the shell, press h for help.
+
+=head1 DESCRIPTION
+
+The .tracks file is read into an array, where the 0th element holds the 
+metadata for the file, and each of the other elements holds the information 
+for the actual track.
+
+
+=head1 SUBROUTINES
+
+For all the subroutines the variable $tracks indicates an array build up in the
+module. 
+
+Those subroutines with a name starting with _ are not exported.
+
+
+=head2 instime(timestamp)
+
+instime inserts a track at a given timestamp
+
+ ins(\@tracks,$timestamp[,$duration]);
+ If duration is not defined, the end of the track is set to the
+ current end of the track in which the insertion is performed
+
+=cut
+
 sub instime{
   my @tracks=@{$_[0]};
   my $timestamp=$_[1];
@@ -57,10 +93,14 @@ sub instime{
   return \@tracks;
 }
 
-# _spliceback and _splicefwd splices the rest of the array when
-# a track has been deleted. They should only be used internally. 
-# In both cases the arguments are a pointer to the tracks array and 
-# the index that is to be deleted
+=head2 _spliceback and _splicefwd
+
+ _spliceback and _splicefwd splices the rest of the array when
+ a track has been deleted. They should only be used internally. 
+ In both cases the arguments are a pointer to the tracks array and 
+ the index that is to be deleted
+
+=cut
 
 # _spliceback removes a track by combining it with the previous track
 sub _spliceback{
@@ -80,10 +120,14 @@ sub _splicefwd{
   return $tracks;
 }
 
+=head2 deltrack
 
-# Deltrack removes a track by default using spliceback (unless the last track 
-# is deleted).
-# deltrack (\@tracks,$index,$back)
+ deltrack (\@tracks,$index,$back)
+
+Deltrack removes a track by default using spliceback (unless the last track 
+is deleted).
+
+=cut
 
 sub deltrack{
   my $tracks=shift;
@@ -97,6 +141,13 @@ sub deltrack{
   return $tracks;
 }
 
+=head2 trackfile
+
+trackfile returns the filename as given by $ENV{TRACKS} and does some simple
+sanity checking on it
+
+=cut
+
 sub _trackfile{
 # Could add a function that returns a *.track file if that
 # is the only one found in the active directory  
@@ -106,13 +157,23 @@ sub _trackfile{
 
 }
 
+=head2 init
+
+init($filename) reads the file as specified by filename and returns the array
+holding all the information in the .tracks-file
+
+=cut 
+
 sub init{
   my (@lines,@tracks,$nooftracks, $comment, %data,$tracks);
   my $file=$_[0] || _trackfile;
+  my $savefile=$file.".bak";
   print "$file\n" if $ENV{GRFDEBUG};
   open (FILE,"<$file") || die ("Cannot open $file");
+  open (BACKUP,">$savefile") || warn ("Cannot create backupfile, $savefile\n");
   my $i;
   while(<FILE>){
+    print BACKUP $_;
     if (!$nooftracks && /Number_of_tracks.(\d+)/)
       {
 	$nooftracks=$1;
@@ -140,8 +201,16 @@ sub init{
   return \@tracks;
 }
 
+=head2 tidytime
+
+$timestamp=tidytime(timestamp)
+
+Does some sanitychecking of the time stamp and tidies up a bit so that the 
+returned timestamp is on the form hh:mm:ss.sss
+
+=cut
+
 sub tidytime{
-  # Does some sanitychecking of the time stamp and tidies up a bit
   my $zerotime="0:00:00.000";
   my $timestamp=shift;
   $timestamp.=' ';
@@ -157,6 +226,13 @@ sub tidytime{
 
 }
 
+=head2 Shellcommands
+
+=head3 shellhelp
+
+Prints out some basic help for the shell commands
+
+=cut
 
 
 sub shellhelp{
@@ -180,6 +256,15 @@ sub shellhelp{
 ENDHELP
 }
 
+=head3 shelladjusttime
+
+shelladjusttime ($tracks,$command,$end)
+
+adjusts the time for start or end of a track. End is either set to 'start' or 
+'end'.
+
+=cut
+
 sub shelladjusttime{
   # adjusts the time for start or end of a track
   my $tracks=shift;
@@ -190,35 +275,72 @@ sub shelladjusttime{
   $$tracks[$1]{$end}=$time;
 }
 
+=head3 shelladd
+
+shelladd($tracks,$timestamp)
+Adds  track at a given time
+
+=cut
+
 
 sub shelladd{
-  # Adds  track at a given time
+
   my $tracks  = shift;
-  my $command = shift;
-  $command=~m/^\w+\s+(.*)/;
-  $command=$1;
-  $tracks=instime($tracks,$command);
+  my $timestamp = shift;
+  $timestamp=~m/^\w+\s+(.*)/;
+  $timestamp=$1;
+  $tracks=instime($tracks,$timestamp);
   
 }
 
+=head3 shelldelete
+
+shelldelete($tracks,$trackno)
+
+uses deltrack() to delete the indicated track
+
+=cut
+
+
 sub shelldelete{
-  my ($tracks,$command)=@_;
-  $command=~m/^\w+\s+(.*)/;
-  $command=$1;
-  $tracks=deltrack($tracks,$command);
+  my ($tracks,$trackno)=@_;
+  $trackno=~m/^\w+\s+(.*)/;
+  $trackno=$1;
+  $tracks=deltrack($tracks,$trackno);
 }
+
+=head3 shellprint
+shellprint($tracks)
+prints out the number of tracks
+
+=cut
 
 sub shellprint{
   my $tracks = shift;
   print $#$tracks," tracks\n";
 }
 
+=head3 shellsave
+
+shellsave($tracks,$filename)
+saves the information to $filename
+
+=cut
+
 sub shellsave{
   my($tracks,$file)=@_;
-  open OUT,">$file.sav";
+  open OUT,">$file";
   print OUT printtracks($tracks);
   close OUT;
 }
+
+=head3 shellprinttracks
+
+shellprinttracks($tracks)
+
+prints out the beginning and end time of all the tracks
+
+=cut
 
 sub shellprinttracks{
   my $tracks=shift;
@@ -233,6 +355,33 @@ sub shellprinttracks{
   
 
 }
+
+=head2 shell
+
+shell($file)
+
+shell will fetch the filename from _trackfile if not given.
+
+shell opens up a quite simple interactive shell for editing. 
+
+The following commands are valid:
+
+    h         : help
+    a <t>     : add a track at given time
+    d <n>     : delete the given track
+    n         : print number of tracks
+    p         : print start and end times for all tracks
+    b <n> <t> : alter beginning of track
+    e <n> <t> : alter end of track
+    s         : save file
+    q         : quit
+    ---------------------------------------------------------
+    <t> time,  must be given as h:mm:ss.ss 
+    <n> tracknumber
+
+
+=cut
+
 
 sub shell{
   my $file = shift || _trackfile;
@@ -258,6 +407,13 @@ sub shell{
   }
 }
 
+=head2 printtracks
+
+printtracks($tracks)
+
+returns the information in $tracks. Suitable for saving.
+
+=cut
 
 sub printtracks{
   my $tracks=shift;
@@ -282,3 +438,12 @@ sub printtracks{
 }
 
 1;
+
+
+=head1 LICENCE
+
+    (c) Morten Sickel (cpan\@sickel.net) April 2005
+    The last version should be available at http://sickel.net
+    Licenced under the artistic licence
+
+=cut

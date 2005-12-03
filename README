@@ -50,8 +50,6 @@ using perl 5.8.x, but should work under, at least all versions of perl 5.x.
 
 COPYRIGHT AND LICENCE
 
-Put the correct copyright and licence information here.
-
 Copyright (C) 2005 by morten sickel, cpan@sickel.net
 
 This library is free software; you can redistribute it and/or modify
