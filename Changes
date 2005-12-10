@@ -9,3 +9,6 @@ Revision history for Perl extension Gftracks.
         - No longer writes to a .tracks.sav file
 	- makes a backup file of the original on startup
 	- added POD-documentation
+
+0.9.1 Fri Dec 09 19:20:00 2005
+	- Prints duration of each track

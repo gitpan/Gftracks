@@ -5,8 +5,8 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 12;
-use Gftracks qw /sec tidytime/;
+use Test::More tests => 19;
+use Gftracks qw /sec tidytime timediff/;
 #########################
 
 # Insert your test code below, the Test::More module is use()ed here so read
@@ -25,3 +25,10 @@ is('0:23:34.000',tidytime('23 34.0'));
 is('1:23:34.000',tidytime('1 23 34'));
 is('1:23:34.000',tidytime('1 23 34.'));
 is('1:23:34.600',tidytime('1 23 34.6'));
+is(timediff('0:00:00.000','0:00:00.000'),'0:00:00.000');
+is(timediff('0:00:00.000','0:00:01.000'),'0:00:01.000');
+is(timediff('0:00:00.000','0:01:00.000'),'0:01:00.000');
+is(timediff('0:00:00.000','0:01:01.000'),'0:01:01.000');
+is(timediff('0:00:00.000','1:01:01.000'),'1:01:01.000');
+is(timediff('0:01:00.000','0:02:00.000'),'0:01:00.000');
+is(timediff('0:00:04.000','0:02:00.000'),'0:01:56.000');

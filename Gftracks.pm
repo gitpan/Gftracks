@@ -5,11 +5,11 @@ use strict;
 use Data::Dumper;
 use Exporter;
 our @ISA=qw / Exporter /;
-our @EXPORT = qw / instime init deltrack printtracks shell/;
+our @EXPORT = qw / instime init deltrack printtracks shell timediff /;
 # Normally sec should only be used internally, but just in case, 
 # we make it possible to pull it in.
 our @EXPORT_OK = qw /sec tidytime /;
-our $VERSION="0.9";
+our $VERSION="0.9.1";
 # Returns number of secounds calculated from a grf timestamp
 
 sub sec{
@@ -51,13 +51,49 @@ module.
 Those subroutines with a name starting with _ are not exported.
 
 
-=head2 instime(timestamp)
+=head2 timediff
+
+timediff calculates the difference between two timestamps and returns 
+the time formatted as a standard timestamp
+ $difference = timediff($firsttime,$secondtime)
+
+=cut
+
+sub _reducetime{
+  my ($time,$interval)=@_;
+  my ($hour)=0;
+  if ($time >= $interval){
+    $hour=sprintf("%.0f",$time/$interval-0.4999999);
+    $time=$time-$hour*$interval;
+  }
+  $hour= "0$hour" if $hour<10 and $interval< 3600;
+  return($time,$hour);
+}
+
+sub timediff{
+  my ($begin,$end)= @_;
+  my $time=sec($end)-sec($begin);
+  my ($hour,$min)=(0,0);
+  ($time,$hour)=_reducetime($time,3600);
+  ($time,$min)=_reducetime($time,60);
+  $time=sprintf("%.3f",$time);
+
+  $time = "0$time" if $time < 10;
+  ("$hour:$min:$time")
+}
+ 
+
+
+
+
+=head2 instime
 
 instime inserts a track at a given timestamp
 
- ins(\@tracks,$timestamp[,$duration]);
- If duration is not defined, the end of the track is set to the
- current end of the track in which the insertion is performed
+ instime($tracks,$timestamp[,$duration]);
+
+If duration is not defined, the end of the track is set to the
+current end of the track in which the insertion is performed
 
 =cut
 
@@ -95,10 +131,14 @@ sub instime{
 
 =head2 _spliceback and _splicefwd
 
- _spliceback and _splicefwd splices the rest of the array when
- a track has been deleted. They should only be used internally. 
- In both cases the arguments are a pointer to the tracks array and 
- the index that is to be deleted
+ $tracks=_spliceback($tracks,$delno);
+ $tracks=_splicefwd($tracks,$delno);
+
+
+_spliceback and _splicefwd splices the rest of the array when
+a track has been deleted. They should only be used internally. 
+In both cases the arguments are a pointer to the tracks array and 
+the index that is to be deleted
 
 =cut
 
@@ -143,6 +183,8 @@ sub deltrack{
 
 =head2 trackfile
 
+ $filename=trackfile()
+
 trackfile returns the filename as given by $ENV{TRACKS} and does some simple
 sanity checking on it
 
@@ -159,7 +201,9 @@ sub _trackfile{
 
 =head2 init
 
-init($filename) reads the file as specified by filename and returns the array
+ $tracks=init($filename) 
+
+init reads the file as specified by filename and returns the array
 holding all the information in the .tracks-file
 
 =cut 
@@ -203,7 +247,7 @@ sub init{
 
 =head2 tidytime
 
-$timestamp=tidytime(timestamp)
+ $timestamp=tidytime(timestamp)
 
 Does some sanitychecking of the time stamp and tidies up a bit so that the 
 returned timestamp is on the form hh:mm:ss.sss
@@ -258,7 +302,7 @@ ENDHELP
 
 =head3 shelladjusttime
 
-shelladjusttime ($tracks,$command,$end)
+ shelladjusttime ($tracks,$command,$end)
 
 adjusts the time for start or end of a track. End is either set to 'start' or 
 'end'.
@@ -277,8 +321,9 @@ sub shelladjusttime{
 
 =head3 shelladd
 
-shelladd($tracks,$timestamp)
-Adds  track at a given time
+ shelladd($tracks,$timestamp)
+
+Adds a track at a given time
 
 =cut
 
@@ -295,7 +340,7 @@ sub shelladd{
 
 =head3 shelldelete
 
-shelldelete($tracks,$trackno)
+ shelldelete($tracks,$trackno)
 
 uses deltrack() to delete the indicated track
 
@@ -310,7 +355,9 @@ sub shelldelete{
 }
 
 =head3 shellprint
-shellprint($tracks)
+
+ shellprint($tracks)
+
 prints out the number of tracks
 
 =cut
@@ -322,7 +369,8 @@ sub shellprint{
 
 =head3 shellsave
 
-shellsave($tracks,$filename)
+ shellsave($tracks,$filename)
+
 saves the information to $filename
 
 =cut
@@ -336,7 +384,7 @@ sub shellsave{
 
 =head3 shellprinttracks
 
-shellprinttracks($tracks)
+ shellprinttracks($tracks)
 
 prints out the beginning and end time of all the tracks
 
@@ -346,11 +394,12 @@ sub shellprinttracks{
   my $tracks=shift;
   my @tracks=@$tracks;
   my $i;
-  print "track from"." "x10,"to\n";
-  print "-"x(6+4+10+11),"\n";
+  print "track from"." "x10,"to"." "x10,"time\n";
+  print "-"x(6+4+10+11+13),"\n";
   foreach $i (1..$#tracks){
     print "  $i"," "x(4-length($i)),$tracks[$i]->{start},
-      " - ",$tracks[$i]->{end},"\n";
+      " - ",$tracks[$i]->{end},"  ",
+	timediff($tracks[$i]->{start},$tracks[$i]->{end}),"\n";
   }
   
 
@@ -358,7 +407,7 @@ sub shellprinttracks{
 
 =head2 shell
 
-shell($file)
+ shell($file)
 
 shell will fetch the filename from _trackfile if not given.
 
